@@ -43,8 +43,10 @@ impl Event {
     pub fn verify(&self) -> bool {
         match *self {
             Event::Transaction(ref tr) => tr.verify(),
-            Event::Signature { from, tx_sig, sig } => sig.verify(&from, tx_sig.as_ref()),
-            Event::Timestamp { from, dt, sig } => sig.verify(&from, &serialize(&dt).unwrap()),
+            Event::Signature { from, tx_sig, sig } => sig.verify(from.as_ref(), tx_sig.as_ref()),
+            Event::Timestamp { from, dt, sig } => {
+                sig.verify(from.as_ref(), &serialize(&dt).unwrap())
+            }
         }
     }
 }

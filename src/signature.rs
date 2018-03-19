@@ -6,7 +6,14 @@ use ring::signature::Ed25519KeyPair;
 use ring::{rand, signature};
 use untrusted;
 
-pub type PublicKey = GenericArray<u8, U32>;
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Copy, Clone, Hash, Default)]
+pub struct PublicKey(GenericArray<u8, U32>);
+
+impl AsRef<GenericArray<u8, U32>> for PublicKey {
+    fn as_ref(&self) -> &GenericArray<u8, U32> {
+        &self.0
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Copy, Clone, Hash, Default)]
 pub struct Signature(GenericArray<u8, U64>);
@@ -43,7 +50,7 @@ impl KeyPair {
 
     /// Return the public key for the given keypair
     pub fn pubkey(&self) -> PublicKey {
-        GenericArray::clone_from_slice(self.0.public_key_bytes())
+        PublicKey(GenericArray::clone_from_slice(self.0.public_key_bytes()))
     }
 
     pub fn sign(&self, msg: &[u8]) -> Signature {

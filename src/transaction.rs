@@ -69,7 +69,7 @@ impl Transaction {
     }
 
     pub fn verify(&self) -> bool {
-        self.sig.verify(&self.from, &self.get_sign_data()) && self.plan.verify(self.tokens)
+        self.sig.verify(self.from.as_ref(), &self.get_sign_data()) && self.plan.verify(self.tokens)
     }
 }
 
