@@ -8,7 +8,9 @@ use untrusted;
 
 pub struct KeyPair(Ed25519KeyPair);
 pub type PublicKey = GenericArray<u8, U32>;
-pub type Signature = GenericArray<u8, U64>;
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Copy, Clone, Hash, Default)]
+pub struct Signature(GenericArray<u8, U64>);
 
 impl KeyPair {
     /// Return a new ED25519 keypair
@@ -29,19 +31,21 @@ impl KeyPair {
     }
 
     pub fn sign(&self, msg: &[u8]) -> Signature {
-        GenericArray::clone_from_slice(self.0.sign(msg).as_ref())
+        Signature(GenericArray::clone_from_slice(self.0.sign(msg).as_ref()))
     }
 }
 
-pub trait SignatureUtil {
-    fn verify(&self, peer_public_key_bytes: &[u8], msg_bytes: &[u8]) -> bool;
-}
-
-impl SignatureUtil for GenericArray<u8, U64> {
-    fn verify(&self, peer_public_key_bytes: &[u8], msg_bytes: &[u8]) -> bool {
+impl Signature {
+    pub fn verify(&self, peer_public_key_bytes: &[u8], msg_bytes: &[u8]) -> bool {
         let peer_public_key = untrusted::Input::from(peer_public_key_bytes);
         let msg = untrusted::Input::from(msg_bytes);
-        let sig = untrusted::Input::from(self);
+        let sig = untrusted::Input::from(&self.0);
         signature::verify(&signature::ED25519, peer_public_key, msg, sig).is_ok()
+    }
+}
+
+impl AsRef<GenericArray<u8, U64>> for Signature {
+    fn as_ref(&self) -> &GenericArray<u8, U64> {
+        &self.0
     }
 }

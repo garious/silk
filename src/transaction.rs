@@ -1,6 +1,6 @@
 //! The `transaction` crate provides functionality for creating log transactions.
 
-use signature::{KeyPair, PublicKey, Signature, SignatureUtil};
+use signature::{KeyPair, PublicKey, Signature};
 use bincode::serialize;
 use hash::Hash;
 use chrono::prelude::*;

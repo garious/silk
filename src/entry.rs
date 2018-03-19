@@ -45,7 +45,7 @@ pub fn next_hash(start_hash: &Hash, num_hashes: u64, events: &[Event]) -> Hash {
     for event in events {
         let sig = event.get_signature();
         if let Some(sig) = sig {
-            hash_data.extend_from_slice(&sig);
+            hash_data.extend_from_slice(sig.as_ref());
         }
     }
 
