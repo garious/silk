@@ -5,7 +5,7 @@ use silk::mint::Mint;
 use silk::event::Event;
 use silk::transaction::Transaction;
 use silk::entry::create_entry;
-use silk::signature::{KeyPair, KeyPairUtil, PublicKey};
+use silk::signature::{KeyPair, PublicKey};
 use silk::hash::Hash;
 use std::io::stdin;
 

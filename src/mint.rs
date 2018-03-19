@@ -2,12 +2,12 @@
 
 use event::Event;
 use transaction::Transaction;
-use signature::{KeyPair, KeyPairUtil, PublicKey};
+use signature::{KeyPair, PublicKey};
 use entry::Entry;
 use entry::create_entry;
 use hash::{hash, Hash};
 use ring::rand::SystemRandom;
-use untrusted::Input;
+use ring::signature::Ed25519KeyPair;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Mint {
@@ -19,8 +19,8 @@ pub struct Mint {
 impl Mint {
     pub fn new(tokens: i64) -> Self {
         let rnd = SystemRandom::new();
-        let pkcs8 = KeyPair::generate_pkcs8(&rnd).unwrap().to_vec();
-        let keypair = KeyPair::from_pkcs8(Input::from(&pkcs8)).unwrap();
+        let pkcs8 = Ed25519KeyPair::generate_pkcs8(&rnd).unwrap().to_vec();
+        let keypair = KeyPair::from_pkcs8(&pkcs8);
         let pubkey = keypair.pubkey();
         Mint {
             pkcs8,
@@ -34,7 +34,7 @@ impl Mint {
     }
 
     pub fn keypair(&self) -> KeyPair {
-        KeyPair::from_pkcs8(Input::from(&self.pkcs8)).unwrap()
+        KeyPair::from_pkcs8(&self.pkcs8)
     }
 
     pub fn pubkey(&self) -> PublicKey {

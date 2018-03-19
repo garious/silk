@@ -88,7 +88,7 @@ pub fn next_tick(start_hash: &Hash, num_hashes: u64) -> Entry {
 mod tests {
     use super::*;
     use hash::hash;
-    use signature::{KeyPair, KeyPairUtil};
+    use signature::KeyPair;
     use transaction::Transaction;
     use event::Event;
     use entry::create_entry;

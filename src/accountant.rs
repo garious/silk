@@ -239,7 +239,6 @@ impl Accountant {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use signature::KeyPairUtil;
     use recorder::ExitReason;
 
     #[test]

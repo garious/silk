@@ -6,26 +6,30 @@ use ring::signature::Ed25519KeyPair;
 use ring::{rand, signature};
 use untrusted;
 
-pub type KeyPair = Ed25519KeyPair;
+pub struct KeyPair(Ed25519KeyPair);
 pub type PublicKey = GenericArray<u8, U32>;
 pub type Signature = GenericArray<u8, U64>;
 
-pub trait KeyPairUtil {
-    fn new() -> Self;
-    fn pubkey(&self) -> PublicKey;
-}
-
-impl KeyPairUtil for Ed25519KeyPair {
+impl KeyPair {
     /// Return a new ED25519 keypair
-    fn new() -> Self {
+    pub fn from_pkcs8(pkcs8_bytes: &[u8]) -> Self {
+        KeyPair(signature::Ed25519KeyPair::from_pkcs8(untrusted::Input::from(pkcs8_bytes)).unwrap())
+    }
+
+    /// Return a new ED25519 keypair
+    pub fn new() -> Self {
         let rng = rand::SystemRandom::new();
         let pkcs8_bytes = signature::Ed25519KeyPair::generate_pkcs8(&rng).unwrap();
-        signature::Ed25519KeyPair::from_pkcs8(untrusted::Input::from(&pkcs8_bytes)).unwrap()
+        Self::from_pkcs8(&pkcs8_bytes)
     }
 
     /// Return the public key for the given keypair
-    fn pubkey(&self) -> PublicKey {
-        GenericArray::clone_from_slice(self.public_key_bytes())
+    pub fn pubkey(&self) -> PublicKey {
+        GenericArray::clone_from_slice(self.0.public_key_bytes())
+    }
+
+    pub fn sign(&self, msg: &[u8]) -> Signature {
+        GenericArray::clone_from_slice(self.0.sign(msg).as_ref())
     }
 }
 

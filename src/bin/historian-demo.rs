@@ -5,7 +5,7 @@ use silk::hash::Hash;
 use silk::entry::Entry;
 use silk::ledger::verify_slice;
 use silk::recorder::Signal;
-use silk::signature::{KeyPair, KeyPairUtil};
+use silk::signature::KeyPair;
 use silk::transaction::Transaction;
 use silk::event::Event;
 use std::thread::sleep;

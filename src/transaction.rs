@@ -1,6 +1,6 @@
 //! The `transaction` crate provides functionality for creating log transactions.
 
-use signature::{KeyPair, KeyPairUtil, PublicKey, Signature, SignatureUtil};
+use signature::{KeyPair, PublicKey, Signature, SignatureUtil};
 use bincode::serialize;
 use hash::Hash;
 use chrono::prelude::*;
@@ -65,7 +65,7 @@ impl Transaction {
 
     pub fn sign(&mut self, keypair: &KeyPair) {
         let sign_data = self.get_sign_data();
-        self.sig = Signature::clone_from_slice(keypair.sign(&sign_data).as_ref());
+        self.sig = keypair.sign(&sign_data);
     }
 
     pub fn verify(&self) -> bool {

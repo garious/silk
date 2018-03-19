@@ -118,7 +118,7 @@ mod tests {
     use std::thread::sleep;
     use std::time::Duration;
     use mint::Mint;
-    use signature::{KeyPair, KeyPairUtil};
+    use signature::KeyPair;
     use std::sync::{Arc, Mutex};
 
     #[test]

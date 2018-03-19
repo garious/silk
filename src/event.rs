@@ -1,6 +1,6 @@
 //! The `event` crate provides the data structures for log events.
 
-use signature::{KeyPair, KeyPairUtil, PublicKey, Signature, SignatureUtil};
+use signature::{KeyPair, PublicKey, Signature, SignatureUtil};
 use transaction::Transaction;
 use chrono::prelude::*;
 use bincode::serialize;

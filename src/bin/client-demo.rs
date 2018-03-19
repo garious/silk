@@ -2,7 +2,7 @@ extern crate serde_json;
 extern crate silk;
 
 use silk::accountant_stub::AccountantStub;
-use silk::signature::{KeyPair, KeyPairUtil};
+use silk::signature::KeyPair;
 use silk::transaction::Transaction;
 use silk::mint::Mint;
 use std::time::Instant;
