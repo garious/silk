@@ -1,6 +1,6 @@
 //! The `transaction` crate provides functionality for creating log transactions.
 
-use signature::{KeyPair, PublicKey, Signature};
+use signature::{KeyPair, PublicKey, Signature, as_base64, from_base64};
 use bincode::serialize;
 use hash::Hash;
 use chrono::prelude::*;
@@ -11,7 +11,7 @@ pub struct Transaction {
     pub from: PublicKey,
     pub plan: Plan,
     pub tokens: i64,
-    pub last_id: Hash,
+    #[serde(serialize_with = "as_base64", deserialize_with = "from_base64")] pub last_id: Hash,
     pub sig: Signature,
 }
 

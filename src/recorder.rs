@@ -48,7 +48,7 @@ impl Recorder {
     pub fn record_entry(&mut self) -> Result<Entry, ExitReason> {
         let events = mem::replace(&mut self.events, vec![]);
         let entry = create_entry_mut(&mut self.last_id, &mut self.num_hashes, events);
-        println!("{}", serde_json::to_string(&entry).unwrap());
+        println!("{}", serde_json::to_string_pretty(&entry).unwrap());
         Ok(entry)
     }
 

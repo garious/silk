@@ -27,6 +27,7 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate sha2;
 extern crate untrusted;
+extern crate base64;
 
 #[cfg(test)]
 #[macro_use]

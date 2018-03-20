@@ -1,10 +1,11 @@
 use hash::{extend_and_hash, hash, Hash};
+use signature::{as_base64, from_base64};
 use event::Event;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Entry {
     pub num_hashes: u64,
-    pub id: Hash,
+    #[serde(serialize_with = "as_base64", deserialize_with = "from_base64")] pub id: Hash,
     pub events: Vec<Event>,
 }
 

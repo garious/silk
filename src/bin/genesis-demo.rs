@@ -25,6 +25,6 @@ fn main() {
     entries.push(create_entry(&seed, 0, events));
 
     for entry in entries {
-        println!("{}", serde_json::to_string(&entry).unwrap());
+        println!("{}", serde_json::to_string_pretty(&entry).unwrap());
     }
 }
