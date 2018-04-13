@@ -16,6 +16,7 @@ use std::collections::hash_map::Entry::Occupied;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::result;
 use std::sync::RwLock;
+use std::sync::atomic::{AtomicIsize, Ordering};
 use transaction::Transaction;
 
 pub const MAX_ENTRY_IDS: usize = 1024 * 4;
@@ -30,18 +31,18 @@ pub enum AccountingError {
 pub type Result<T> = result::Result<T, AccountingError>;
 
 /// Commit funds to the 'to' party.
-fn apply_payment(balances: &RwLock<HashMap<PublicKey, RwLock<i64>>>, payment: &Payment) {
+fn apply_payment(balances: &RwLock<HashMap<PublicKey, AtomicIsize>>, payment: &Payment) {
     if balances.read().unwrap().contains_key(&payment.to) {
         let bals = balances.read().unwrap();
-        *bals[&payment.to].write().unwrap() += payment.tokens;
+        bals[&payment.to].fetch_add(payment.tokens as isize, Ordering::Relaxed);
     } else {
         let mut bals = balances.write().unwrap();
-        bals.insert(payment.to, RwLock::new(payment.tokens));
+        bals.insert(payment.to, AtomicIsize::new(payment.tokens as isize));
     }
 }
 
 pub struct Accountant {
-    balances: RwLock<HashMap<PublicKey, RwLock<i64>>>,
+    balances: RwLock<HashMap<PublicKey, AtomicIsize>>,
     pending: RwLock<HashMap<Signature, Plan>>,
     last_ids: RwLock<VecDeque<(Hash, RwLock<HashSet<Signature>>)>>,
     time_sources: RwLock<HashSet<PublicKey>>,
@@ -117,17 +118,25 @@ impl Accountant {
         if option.is_none() {
             return Err(AccountingError::AccountNotFound);
         }
-        let mut bal = option.unwrap().write().unwrap();
-
-        if *bal < tr.data.tokens {
-            return Err(AccountingError::InsufficientFunds);
-        }
-
         if !self.reserve_signature_with_last_id(&tr.sig, &tr.data.last_id) {
             return Err(AccountingError::InvalidTransferSignature);
         }
 
-        *bal -= tr.data.tokens;
+        let bal = option.unwrap();
+        let current = bal.load(Ordering::Relaxed) as i64;
+        let mut latest = -1;
+        //while latest != current {
+        if current < tr.data.tokens {
+            // TODO: self.remove_signature_from_last_id
+            return Err(AccountingError::InsufficientFunds);
+        }
+
+        latest = bal.compare_and_swap(
+            current as isize,
+            (current - tr.data.tokens) as isize,
+            Ordering::Relaxed,
+        ) as i64;
+        //}
 
         Ok(())
     }
@@ -282,7 +291,7 @@ impl Accountant {
 
     pub fn get_balance(&self, pubkey: &PublicKey) -> Option<i64> {
         let bals = self.balances.read().unwrap();
-        bals.get(pubkey).map(|x| *x.read().unwrap())
+        bals.get(pubkey).map(|x| x.load(Ordering::Relaxed) as i64)
     }
 }
 
