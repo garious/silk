@@ -217,49 +217,41 @@ impl Accountant {
         Ok(())
     }
 
+    pub fn process_verified_event_debits(&self, event: &Event) -> Result<()> {
+        if let Event::Transaction(tr) = event {
+            self.process_verified_transaction_debits(tr)?;
+        }
+        Ok(())
+    }
+
+    pub fn process_verified_event_credits(&self, event: &Event) {
+        match event {
+            Event::Transaction(ref tr) => self.process_verified_transaction_credits(tr),
+            Event::Signature { from, tx_sig, .. } => {
+                self.process_verified_sig_credits(from, tx_sig)
+            }
+            Event::Timestamp { from, dt, .. } => self.process_verified_timestamp_credits(from, dt),
+        };
+    }
+
     /// Process a batch of verified transactions.
-    pub fn process_verified_transactions(&self, trs: Vec<Transaction>) -> Vec<Result<Transaction>> {
+    pub fn process_verified_events(&self, events: Vec<Event>) -> Vec<Result<Event>> {
         // Run all debits first to filter out any transactions that can't be processed
         // in parallel deterministically.
-        let results: Vec<_> = trs.into_par_iter()
-            .map(|tr| self.process_verified_transaction_debits(&tr).map(|_| tr))
+        let results: Vec<_> = events
+            .into_par_iter()
+            .map(|tr| self.process_verified_event_debits(&tr).map(|_| tr))
             .collect(); // Calling collect() here forces all debits to complete before moving on.
 
         results
             .into_par_iter()
             .map(|result| {
                 result.map(|tr| {
-                    self.process_verified_transaction_credits(&tr);
+                    self.process_verified_event_credits(&tr);
                     tr
                 })
             })
             .collect()
-    }
-
-    fn partition_events(events: Vec<Event>) -> (Vec<Transaction>, Vec<Event>) {
-        let mut trs = vec![];
-        let mut rest = vec![];
-        for event in events {
-            match event {
-                Event::Transaction(tr) => trs.push(tr),
-                _ => rest.push(event),
-            }
-        }
-        (trs, rest)
-    }
-
-    pub fn process_verified_events(&self, events: Vec<Event>) -> Vec<Result<Event>> {
-        let (trs, rest) = Self::partition_events(events);
-        let mut results: Vec<_> = self.process_verified_transactions(trs)
-            .into_iter()
-            .map(|x| x.map(Event::Transaction))
-            .collect();
-
-        for event in rest {
-            results.push(self.process_verified_event(event));
-        }
-
-        results
     }
 
     pub fn process_verified_entries(&self, entries: Vec<Entry>) -> Result<()> {
@@ -273,24 +265,22 @@ impl Accountant {
     }
 
     /// Process a Witness Signature that has already been verified.
-    fn process_verified_sig(&self, from: PublicKey, tx_sig: Signature) -> Result<()> {
+    fn process_verified_sig_credits(&self, from: &PublicKey, tx_sig: &Signature) {
         if let Occupied(mut e) = self.pending
             .write()
-            .expect("write() in process_verified_sig")
-            .entry(tx_sig)
+            .expect("write() in process_verified_sig_credits")
+            .entry(*tx_sig)
         {
-            e.get_mut().apply_witness(&Witness::Signature(from));
+            e.get_mut().apply_witness(&Witness::Signature(*from));
             if let Some(ref payment) = e.get().final_payment() {
                 apply_payment(&self.balances, payment);
                 e.remove_entry();
             }
         };
-
-        Ok(())
     }
 
     /// Process a Witness Timestamp that has already been verified.
-    fn process_verified_timestamp(&self, from: PublicKey, dt: DateTime<Utc>) -> Result<()> {
+    fn process_verified_timestamp_credits(&self, from: &PublicKey, dt: &DateTime<Utc>) {
         // If this is the first timestamp we've seen, it probably came from the genesis block,
         // so we'll trust it.
         if *self.last_time
@@ -301,19 +291,19 @@ impl Accountant {
             self.time_sources
                 .write()
                 .expect("'time_sources' write lock on first timestamp")
-                .insert(from);
+                .insert(*from);
         }
 
         if self.time_sources
             .read()
             .expect("'time_sources' read lock")
-            .contains(&from)
+            .contains(from)
         {
-            if dt > *self.last_time.read().expect("'last_time' read lock") {
-                *self.last_time.write().expect("'last_time' write lock") = dt;
+            if *dt > *self.last_time.read().expect("'last_time' read lock") {
+                *self.last_time.write().expect("'last_time' write lock") = *dt;
             }
         } else {
-            return Ok(());
+            return;
         }
 
         // Check to see if any timelocked transactions can be completed.
@@ -323,7 +313,7 @@ impl Accountant {
         // double-spend if it enters before the modified plan is removed from 'pending'.
         let mut pending = self.pending
             .write()
-            .expect("'pending' write lock in process_verified_timestamp");
+            .expect("'pending' write lock in process_verified_timestamp_credits");
         for (key, plan) in pending.iter_mut() {
             plan.apply_witness(&Witness::Timestamp(*self.last_time
                 .read()
@@ -337,18 +327,6 @@ impl Accountant {
         for key in completed {
             pending.remove(&key);
         }
-
-        Ok(())
-    }
-
-    /// Process an Transaction or Witness that has already been verified.
-    pub fn process_verified_event(&self, event: Event) -> Result<Event> {
-        match event {
-            Event::Transaction(ref tr) => self.process_verified_transaction(tr),
-            Event::Signature { from, tx_sig, .. } => self.process_verified_sig(from, tx_sig),
-            Event::Timestamp { from, dt, .. } => self.process_verified_timestamp(from, dt),
-        }?;
-        Ok(event)
     }
 
     /// Create, sign, and process a Transaction from `keypair` to `to` of
@@ -474,14 +452,10 @@ mod tests {
 
         // Now, acknowledge the time in the condition occurred and
         // that bob's funds are now available.
-        accountant
-            .process_verified_timestamp(alice.pubkey(), dt)
-            .unwrap();
+        accountant.process_verified_timestamp_credits(&alice.pubkey(), &dt);
         assert_eq!(accountant.get_balance(&bob_pubkey), Some(1));
 
-        accountant
-            .process_verified_timestamp(alice.pubkey(), dt)
-            .unwrap(); // <-- Attack! Attempt to process completed transaction.
+        accountant.process_verified_timestamp_credits(&alice.pubkey(), &dt); // <-- Attack! Attempt to process completed transaction.
         assert_ne!(accountant.get_balance(&bob_pubkey), Some(2));
     }
 
@@ -492,9 +466,7 @@ mod tests {
         let alice_keypair = alice.keypair();
         let bob_pubkey = KeyPair::new().pubkey();
         let dt = Utc::now();
-        accountant
-            .process_verified_timestamp(alice.pubkey(), dt)
-            .unwrap();
+        accountant.process_verified_timestamp_credits(&alice.pubkey(), &dt);
 
         // It's now past now, so this transfer should be processed immediately.
         accountant
@@ -524,15 +496,11 @@ mod tests {
         assert_eq!(accountant.get_balance(&bob_pubkey), None);
 
         // Now, cancel the trancaction. Alice gets her funds back, Bob never sees them.
-        accountant
-            .process_verified_sig(alice.pubkey(), sig)
-            .unwrap();
+        accountant.process_verified_sig_credits(&alice.pubkey(), &sig);
         assert_eq!(accountant.get_balance(&alice.pubkey()), Some(1));
         assert_eq!(accountant.get_balance(&bob_pubkey), None);
 
-        accountant
-            .process_verified_sig(alice.pubkey(), sig)
-            .unwrap(); // <-- Attack! Attempt to cancel completed transaction.
+        accountant.process_verified_sig_credits(&alice.pubkey(), &sig); // <-- Attack! Attempt to cancel completed transaction.
         assert_ne!(accountant.get_balance(&alice.pubkey()), Some(2));
     }
 
@@ -575,8 +543,8 @@ mod tests {
         let alice = KeyPair::new();
         let tr0 = Transaction::new(&mint.keypair(), alice.pubkey(), 2, mint.last_id());
         let tr1 = Transaction::new(&alice, mint.pubkey(), 1, mint.last_id());
-        let trs = vec![tr0, tr1];
-        assert!(accountant.process_verified_transactions(trs)[1].is_err());
+        let events = vec![Event::Transaction(tr0), Event::Transaction(tr1)];
+        assert!(accountant.process_verified_events(events)[1].is_err());
     }
 }
 
