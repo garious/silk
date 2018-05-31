@@ -1,10 +1,8 @@
 #[macro_use]
 extern crate log;
 extern crate bincode;
-extern crate futures;
 extern crate solana;
 
-use futures::Future;
 use solana::bank::Bank;
 use solana::crdt::TestNode;
 use solana::crdt::{Crdt, ReplicatedData};
@@ -17,7 +15,6 @@ use solana::streamer::default_window;
 use solana::thin_client::ThinClient;
 use std::io;
 use std::io::sink;
-use std::net::UdpSocket;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use std::thread::sleep;
@@ -147,17 +144,14 @@ fn test_multi_node() {
 }
 
 fn mk_client(leader: &ReplicatedData) -> ThinClient {
-    let requests_socket = UdpSocket::bind("0.0.0.0:0").unwrap();
-    requests_socket
-        .set_read_timeout(Some(Duration::new(1, 0)))
-        .unwrap();
-    let transactions_socket = UdpSocket::bind("0.0.0.0:0").unwrap();
+    let requests_addr = "0.0.0.0:0".parse().unwrap();
+    let transactions_addr = "0.0.0.0:0".parse().unwrap();
 
     ThinClient::new(
         leader.requests_addr,
-        requests_socket,
+        requests_addr,
         leader.transactions_addr,
-        transactions_socket,
+        transactions_addr,
     )
 }
 
@@ -168,7 +162,7 @@ fn tx_and_retry_get_balance(
 ) -> io::Result<i64> {
     let mut client = mk_client(leader);
     trace!("getting leader last_id");
-    let last_id = client.get_last_id().wait().unwrap();
+    let last_id = client.get_last_id();
     info!("executing leader transer");
     let _sig = client
         .transfer(500, &alice.keypair(), *bob_pubkey, &last_id)
