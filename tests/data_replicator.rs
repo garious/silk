@@ -223,7 +223,8 @@ fn check_external_liveness_table() {
     trace!("waiting to converge:");
     let mut done = false;
     for _ in 0..30 {
-        done = c1.read().unwrap().table.len() == 3 && c2.read().unwrap().table.len() == 3
+        done = c1.read().unwrap().table.len() == 3
+            && c2.read().unwrap().table.len() == 3
             && c3.read().unwrap().table.len() == 3;
         if done {
             break;
@@ -267,7 +268,10 @@ fn check_external_liveness_table() {
     c4.write().unwrap().insert(&c1_data);
     c4.write().unwrap().set_leader(c1_data.id);
     for _ in 0..30 {
-        done = c1.read().unwrap().get_external_liveness_entry(&c4_id).is_none();
+        done = c1.read()
+            .unwrap()
+            .get_external_liveness_entry(&c4_id)
+            .is_none();
         if done {
             break;
         }
