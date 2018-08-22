@@ -168,7 +168,7 @@ impl Reset for Blob {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum BlobError {
     /// the Blob's meta and data are not self-consistent
     BadState,

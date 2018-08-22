@@ -11,7 +11,7 @@ use std;
 use std::any::Any;
 use window;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum Error {
     IO(std::io::Error),
     JSON(serde_json::Error),
