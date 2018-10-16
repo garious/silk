@@ -13,14 +13,28 @@ pub const PUB_KEY_OFFSET: usize = size_of::<Signature>() + size_of::<u64>();
 /// An instruction to execute a program under the `program_id` of `program_ids_index` with the
 /// specified accounts and userdata
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
-pub struct Instruction {
+pub struct Instruction<T> {
     /// The program code that executes this transaction is identified by the program_id.
     /// this is an offset into the Transaction::program_ids field
-    pub program_ids_index: u8,
+    pub program_ids_index: T,
     /// Indices into the keys array of which accounts to load
-    pub accounts: Vec<u8>,
+    pub accounts: Vec<T>,
     /// Userdata to be stored in the account
     pub userdata: Vec<u8>,
+}
+
+impl Instruction<u8> {
+    pub fn decode(&self, program_ids: &[Pubkey], account_keys: &[Pubkey]) -> Instruction<Pubkey> {
+        Instruction {
+            program_ids_index: program_ids[self.program_ids_index as usize],
+            accounts: self
+                .accounts
+                .iter()
+                .map(|&i| account_keys[i as usize])
+                .collect(),
+            userdata: self.userdata.clone(),
+        }
+    }
 }
 
 /// An atomic transaction
@@ -46,7 +60,7 @@ pub struct Transaction {
     pub program_ids: Vec<Pubkey>,
     /// Programs that will be executed in sequence and commited in one atomic transaction if all
     /// succeed.
-    pub instructions: Vec<Instruction>,
+    pub instructions: Vec<Instruction<u8>>,
 }
 
 impl Transaction {
@@ -87,7 +101,7 @@ impl Transaction {
         last_id: Hash,
         fee: i64,
         program_ids: Vec<Pubkey>,
-        instructions: Vec<Instruction>,
+        instructions: Vec<Instruction<u8>>,
     ) -> Self {
         let from = from_keypair.pubkey();
         let mut account_keys = vec![from];
