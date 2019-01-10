@@ -671,10 +671,12 @@ mod tests {
                 .expect("Expected valid response for account userdata")
                 .expect("Expected valid account userdata to exist after account creation");
 
-            let vote_state = VoteProgram::deserialize(&account_user_data);
+            let vote_state = deserialize::<VoteProgram>(&account_user_data);
 
-            if vote_state.map(|vote_state| vote_state.node_id) == Ok(validator_keypair.pubkey()) {
-                break;
+            if let Ok(vote_state) = vote_state {
+                if vote_state.node_id == validator_keypair.pubkey() {
+                    break;
+                }
             }
 
             if run == LAST {

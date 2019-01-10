@@ -3,6 +3,7 @@ extern crate serde_json;
 use clap::{crate_version, App, Arg};
 use log::*;
 
+use bincode::deserialize;
 use solana::client::mk_client;
 use solana::cluster_info::{Node, NodeInfo, FULLNODE_PORT_RANGE};
 use solana::fullnode::{Fullnode, FullnodeReturnType};
@@ -234,7 +235,7 @@ fn main() {
     loop {
         let vote_account_user_data = client.get_account_userdata(&vote_signer.vote_account);
         if let Ok(Some(vote_account_user_data)) = vote_account_user_data {
-            if let Ok(vote_state) = VoteProgram::deserialize(&vote_account_user_data) {
+            if let Ok(vote_state) = deserialize::<VoteProgram>(&vote_account_user_data) {
                 if vote_state.node_id == pubkey {
                     break;
                 }

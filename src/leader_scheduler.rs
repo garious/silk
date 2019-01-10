@@ -5,7 +5,7 @@ use crate::bank::Bank;
 
 use crate::entry::{create_ticks, Entry};
 use crate::rpc_request::{RpcClient, RpcRequest};
-use bincode::serialize;
+use bincode::{deserialize, serialize};
 use byteorder::{LittleEndian, ReadBytesExt};
 use hashbrown::HashSet;
 use solana_sdk::hash::{hash, Hash};
@@ -327,7 +327,7 @@ impl LeaderScheduler {
                 .values()
                 .filter_map(|account| {
                     if vote_program::check_id(&account.owner) {
-                        if let Ok(vote_state) = VoteProgram::deserialize(&account.userdata) {
+                        if let Ok(vote_state) = deserialize::<VoteProgram>(&account.userdata) {
                             return vote_state
                                 .votes
                                 .back()

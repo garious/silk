@@ -1,12 +1,9 @@
 //! Vote program
 //! Receive and processes votes from validators
 
-use crate::native_program::ProgramError;
 use crate::pubkey::Pubkey;
-use bincode::{deserialize, serialize};
-use byteorder::{ByteOrder, LittleEndian};
+use bincode::serialized_size;
 use std::collections::VecDeque;
-use std::mem;
 
 pub const VOTE_PROGRAM_ID: [u8; 32] = [
     132, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -49,50 +46,23 @@ pub struct VoteProgram {
 }
 
 pub fn get_max_size() -> usize {
-    // Upper limit on the size of the Vote State. Equal to
-    // sizeof(VoteProgram) + MAX_VOTE_HISTORY * sizeof(Vote) +
-    // 32 (the size of the Pubkey) + 2 (2 bytes for the size)
-    mem::size_of::<VoteProgram>()
-        + MAX_VOTE_HISTORY * mem::size_of::<Vote>()
-        + mem::size_of::<Pubkey>()
-        + mem::size_of::<u16>()
-}
-
-impl VoteProgram {
-    pub fn deserialize(input: &[u8]) -> Result<VoteProgram, ProgramError> {
-        let len = LittleEndian::read_u16(&input[0..2]) as usize;
-
-        if len == 0 || input.len() < len + 2 {
-            Err(ProgramError::InvalidUserdata)
-        } else {
-            deserialize(&input[2..=len + 1]).map_err(|_| ProgramError::InvalidUserdata)
-        }
-    }
-
-    pub fn serialize(self: &VoteProgram, output: &mut [u8]) -> Result<(), ProgramError> {
-        let self_serialized = serialize(self).unwrap();
-
-        if output.len() + 2 < self_serialized.len() {
-            return Err(ProgramError::UserdataTooSmall);
-        }
-
-        let serialized_len = self_serialized.len() as u16;
-        LittleEndian::write_u16(&mut output[0..2], serialized_len);
-        output[2..=serialized_len as usize + 1].clone_from_slice(&self_serialized);
-        Ok(())
-    }
+    let mut vote_program = VoteProgram::default();
+    vote_program.votes = VecDeque::from(vec![Vote::default(); MAX_VOTE_HISTORY]);
+    serialized_size(&vote_program).unwrap() as usize
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bincode::{deserialize, serialize};
 
     #[test]
     fn test_serde() {
-        let mut buffer: Vec<u8> = vec![0; get_max_size()];
         let mut vote_program = VoteProgram::default();
-        vote_program.votes = (0..MAX_VOTE_HISTORY).map(|_| Vote::default()).collect();
-        vote_program.serialize(&mut buffer).unwrap();
-        assert_eq!(VoteProgram::deserialize(&buffer).unwrap(), vote_program);
+        vote_program.votes = VecDeque::from(vec![Vote::default(); MAX_VOTE_HISTORY]);
+        assert_eq!(
+            deserialize::<VoteProgram>(&serialize(&vote_program).unwrap()).unwrap(),
+            vote_program
+        );
     }
 }

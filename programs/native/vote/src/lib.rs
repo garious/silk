@@ -1,6 +1,7 @@
 //! Vote program
 //! Receive and processes votes from validators
 
+use bincode::{deserialize, serialize_into};
 use log::*;
 use solana_sdk::account::KeyedAccount;
 use solana_sdk::native_program::ProgramError;
@@ -27,7 +28,7 @@ fn entrypoint(
         Err(ProgramError::InvalidArgument)?;
     }
 
-    match bincode::deserialize(data) {
+    match deserialize(data) {
         Ok(VoteInstruction::RegisterAccount) => {
             if !check_id(&keyed_accounts[1].account.owner) {
                 error!("account[1] is not assigned to the VOTE_PROGRAM");
@@ -41,7 +42,7 @@ fn entrypoint(
                 node_id: *keyed_accounts[0].signer_key().unwrap(),
             };
 
-            vote_state.serialize(&mut keyed_accounts[1].account.userdata)?;
+            serialize_into(&mut keyed_accounts[1].account.userdata, &vote_state).unwrap();
 
             Ok(())
         }
@@ -57,7 +58,8 @@ fn entrypoint(
                     .to_owned(),
             );
 
-            let mut vote_state = VoteProgram::deserialize(&keyed_accounts[0].account.userdata)?;
+            let mut vote_state: VoteProgram = deserialize(&keyed_accounts[0].account.userdata)
+                .map_err(|_| ProgramError::InvalidUserdata)?;
 
             // TODO: Integrity checks
             // a) Verify the vote's bank hash matches what is expected
@@ -69,7 +71,7 @@ fn entrypoint(
             }
 
             vote_state.votes.push_back(vote);
-            vote_state.serialize(&mut keyed_accounts[0].account.userdata)?;
+            serialize_into(&mut keyed_accounts[0].account.userdata, &vote_state).unwrap();
 
             Ok(())
         }

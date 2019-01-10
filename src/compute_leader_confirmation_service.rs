@@ -5,6 +5,7 @@
 use crate::bank::Bank;
 
 use crate::service::Service;
+use bincode::deserialize;
 use solana_metrics::{influxdb, submit};
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::timing;
@@ -49,7 +50,7 @@ impl ComputeLeaderConfirmationService {
                     // Filter out any accounts that don't belong to the VoteProgram
                     // by returning None
                     if vote_program::check_id(&account.owner) {
-                        if let Ok(vote_state) = VoteProgram::deserialize(&account.userdata) {
+                        if let Ok(vote_state) = deserialize::<VoteProgram>(&account.userdata) {
                             if leader_id == vote_state.node_id {
                                 return None;
                             }
