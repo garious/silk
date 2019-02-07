@@ -19,18 +19,19 @@ pub type InstructionAccounts = Vec<Account>;
 pub type InstructionLoaders = Vec<Vec<(Pubkey, Account)>>;
 
 #[derive(Debug, Default)]
-pub struct ErrorCounters {
-    pub account_not_found: usize,
-    pub account_in_use: usize,
-    pub account_loaded_twice: usize,
-    pub last_id_not_found: usize,
-    pub last_id_too_old: usize,
-    pub reserve_last_id: usize,
-    pub insufficient_funds: usize,
-    pub duplicate_signature: usize,
-    pub call_chain_too_deep: usize,
-    pub missing_signature_for_fee: usize,
+pub struct GenericErrorCounters<T> {
+    pub account_not_found: T,
+    pub account_in_use: T,
+    pub account_loaded_twice: T,
+    pub last_id_not_found: T,
+    pub last_id_too_old: T,
+    pub reserve_last_id: T,
+    pub insufficient_funds: T,
+    pub duplicate_signature: T,
+    pub call_chain_too_deep: T,
+    pub missing_signature_for_fee: T,
 }
+pub type ErrorCounters = GenericErrorCounters<usize>;
 
 /// This structure handles the load/store of the accounts
 pub struct AccountsDB {
@@ -426,6 +427,26 @@ mod tests {
     use solana_sdk::transaction::Instruction;
     use solana_sdk::transaction::Transaction;
 
+    macro_rules! assert_counter_eq {
+        ($name:ident, $counters:expr, $expected:expr) => {
+            if let Some(expected) = $expected.$name {
+                assert_eq!($counters.$name, expected);
+            }
+        };
+    }
+
+    type ExpectedErrorCounters = GenericErrorCounters<Option<usize>>;
+    fn assert_counters(error_counters: &ErrorCounters, expected: &ExpectedErrorCounters) {
+        assert_counter_eq!(account_not_found, error_counters, expected);
+        assert_counter_eq!(account_in_use, error_counters, expected);
+        assert_counter_eq!(last_id_not_found, error_counters, expected);
+        assert_counter_eq!(reserve_last_id, error_counters, expected);
+        assert_counter_eq!(insufficient_funds, error_counters, expected);
+        assert_counter_eq!(duplicate_signature, error_counters, expected);
+        assert_counter_eq!(call_chain_too_deep, error_counters, expected);
+        assert_counter_eq!(missing_signature_for_fee, error_counters, expected);
+    }
+
     #[test]
     fn test_purge() {
         let mut db = AccountsDB::default();
@@ -469,7 +490,11 @@ mod tests {
 
         let loaded_accounts = load_accounts(tx, &accounts, &mut error_counters);
 
-        assert_eq!(error_counters.account_not_found, 1);
+        //assert_eq!(error_counters.account_not_found, 1);
+        let mut expected = ExpectedErrorCounters::default();
+        expected.account_not_found = Some(1);
+        assert_counters(&error_counters, &expected);
+
         assert_eq!(loaded_accounts.len(), 1);
         assert_eq!(loaded_accounts[0], Err(BankError::AccountNotFound));
     }
