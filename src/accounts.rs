@@ -435,6 +435,16 @@ mod tests {
         };
     }
 
+    macro_rules! expected_counters {
+        ( $( $name:ident => $e:expr),* ) => {{
+            let mut expected = ExpectedErrorCounters::default();
+            $(
+                expected.$name = Some($e);
+            )*
+            expected
+        }};
+    }
+
     type ExpectedErrorCounters = GenericErrorCounters<Option<usize>>;
     fn assert_counters(error_counters: &ErrorCounters, expected: &ExpectedErrorCounters) {
         assert_counter_eq!(account_not_found, error_counters, expected);
@@ -490,9 +500,7 @@ mod tests {
 
         let loaded_accounts = load_accounts(tx, &accounts, &mut error_counters);
 
-        //assert_eq!(error_counters.account_not_found, 1);
-        let mut expected = ExpectedErrorCounters::default();
-        expected.account_not_found = Some(1);
+        let expected = expected_counters!(account_not_found => 1, account_in_use => 0);
         assert_counters(&error_counters, &expected);
 
         assert_eq!(loaded_accounts.len(), 1);
