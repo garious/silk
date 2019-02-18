@@ -232,7 +232,7 @@ impl Bank {
         self.accounts
             .store_slow(true, &storage_program::id(), &storage_program_account);
 
-        let storage_system_account = Account::new(1, 16 * 1024, storage_program::system_id());
+        let storage_system_account = Account::new(1, 16 * 1024, storage_program::id());
         self.accounts
             .store_slow(true, &storage_program::system_id(), &storage_system_account);
 
