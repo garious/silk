@@ -67,59 +67,61 @@ pub fn entrypoint(
         trace!("Call native {:?}", name);
         let path = create_path(&name);
         // TODO linux tls bug can cause crash on dlclose(), workaround by never unloading
-        match Library::open(Some(&path), libc::RTLD_NODELETE | libc::RTLD_NOW) {
-            Ok(library) => unsafe {
-                let entrypoint: Symbol<instruction_processor_utils::Entrypoint> =
-                    match library.get(instruction_processor_utils::ENTRYPOINT.as_bytes()) {
-                        Ok(s) => s,
-                        Err(e) => {
-                            warn!(
-                                "{:?}: Unable to find {:?} in program",
-                                e,
-                                instruction_processor_utils::ENTRYPOINT
-                            );
-                            return Err(InstructionError::GenericError);
-                        }
-                    };
-                return entrypoint(program_id, params, ix_data, tick_height);
-            },
-            Err(e) => {
+        let library =
+            Library::open(Some(&path), libc::RTLD_NODELETE | libc::RTLD_NOW).map_err(|e| {
                 warn!("Unable to load: {:?}", e);
-                return Err(InstructionError::GenericError);
-            }
-        }
-    } else if let Ok(instruction) = deserialize(ix_data) {
-        if keyed_accounts[0].signer_key().is_none() {
-            warn!("key[0] did not sign the transaction");
-            return Err(InstructionError::GenericError);
-        }
-        match instruction {
-            LoaderInstruction::Write { offset, bytes } => {
-                trace!("NativeLoader::Write offset {} bytes {:?}", offset, bytes);
-                let offset = offset as usize;
-                if keyed_accounts[0].account.data.len() < offset + bytes.len() {
-                    warn!(
-                        "Error: Overflow, {} < {}",
-                        keyed_accounts[0].account.data.len(),
-                        offset + bytes.len()
-                    );
-                    return Err(InstructionError::GenericError);
-                }
-                // native loader takes a name and we assume it all comes in at once
-                keyed_accounts[0].account.data = bytes;
-            }
+                InstructionError::GenericError
+            })?;
 
-            LoaderInstruction::Finalize => {
-                keyed_accounts[0].account.executable = true;
-                trace!(
-                    "NativeLoader::Finalize prog: {:?}",
-                    keyed_accounts[0].signer_key().unwrap()
-                );
-            }
+        unsafe {
+            let entrypoint: Symbol<instruction_processor_utils::Entrypoint> = library
+                .get(instruction_processor_utils::ENTRYPOINT.as_bytes())
+                .map_err(|e| {
+                    warn!(
+                        "{:?}: Unable to find {:?} in program",
+                        e,
+                        instruction_processor_utils::ENTRYPOINT
+                    );
+                    InstructionError::GenericError
+                })?;
+            return entrypoint(program_id, params, ix_data, tick_height);
         }
-    } else {
+    }
+
+    let instruction = deserialize(ix_data).map_err(|_| {
         warn!("Invalid data in instruction: {:?}", ix_data);
+        InstructionError::GenericError
+    })?;
+
+    if keyed_accounts[0].signer_key().is_none() {
+        warn!("key[0] did not sign the transaction");
         return Err(InstructionError::GenericError);
     }
+
+    match instruction {
+        LoaderInstruction::Write { offset, bytes } => {
+            trace!("NativeLoader::Write offset {} bytes {:?}", offset, bytes);
+            let offset = offset as usize;
+            if keyed_accounts[0].account.data.len() < offset + bytes.len() {
+                warn!(
+                    "Error: Overflow, {} < {}",
+                    keyed_accounts[0].account.data.len(),
+                    offset + bytes.len()
+                );
+                return Err(InstructionError::GenericError);
+            }
+            // native loader takes a name and we assume it all comes in at once
+            keyed_accounts[0].account.data = bytes;
+        }
+
+        LoaderInstruction::Finalize => {
+            keyed_accounts[0].account.executable = true;
+            trace!(
+                "NativeLoader::Finalize prog: {:?}",
+                keyed_accounts[0].signer_key().unwrap()
+            );
+        }
+    }
+
     Ok(())
 }
