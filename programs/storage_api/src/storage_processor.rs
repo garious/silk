@@ -118,7 +118,7 @@ mod tests {
             })
             .collect();
 
-        let ret = process_instruction(&id(), &mut keyed_accounts, &ix.data, tick_height);
+        let ret = process_instruction(&id(), &mut keyed_accounts, &ix.data(), tick_height);
         info!("ret: {:?}", ret);
         ret
     }
@@ -168,7 +168,7 @@ mod tests {
         );
 
         assert_eq!(
-            process_instruction(&id(), &mut keyed_accounts, &ix.data, 42),
+            process_instruction(&id(), &mut keyed_accounts, &ix.data(), 42),
             Err(InstructionError::InvalidAccountData)
         );
     }

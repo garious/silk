@@ -161,7 +161,7 @@ mod tests {
             super::process_instruction(
                 &Pubkey::default(),
                 &mut keyed_accounts,
-                &instruction.data,
+                &instruction.data(),
                 0,
             )
         }

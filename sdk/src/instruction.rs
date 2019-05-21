@@ -65,13 +65,19 @@ impl InstructionError {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum InstructionData {
+    Immediate(Vec<u8>),
+    Indirect(Pubkey),
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct Instruction {
     /// Pubkey of the instruction processor that executes this instruction
     pub program_ids_index: Pubkey,
     /// Metadata for what accounts should be passed to the instruction processor
     pub accounts: Vec<AccountMeta>,
     /// Opaque data passed to the instruction processor
-    pub data: Vec<u8>,
+    pub data: InstructionData,
 }
 
 impl Instruction {
@@ -83,8 +89,15 @@ impl Instruction {
         let data = serialize(data).unwrap();
         Self {
             program_ids_index,
-            data,
+            data: InstructionData::Immediate(data),
             accounts,
+        }
+    }
+
+    pub fn data(&self) -> &[u8] {
+        match &self.data {
+            InstructionData::Immediate(bytes) => bytes,
+            _ => panic!("Impossible lookup of account data"),
         }
     }
 }
@@ -104,6 +117,13 @@ impl AccountMeta {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub enum CompiledInstructionData {
+    #[serde(with = "short_vec")]
+    Immediate(Vec<u8>),
+    Indirect(u8),
+}
+
 /// An instruction to execute a program
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct CompiledInstruction {
@@ -113,8 +133,7 @@ pub struct CompiledInstruction {
     #[serde(with = "short_vec")]
     pub accounts: Vec<u8>,
     /// The program input data
-    #[serde(with = "short_vec")]
-    pub data: Vec<u8>,
+    pub data: CompiledInstructionData,
 }
 
 impl CompiledInstruction {
@@ -122,12 +141,19 @@ impl CompiledInstruction {
         let data = serialize(data).unwrap();
         Self {
             program_ids_index,
-            data,
+            data: CompiledInstructionData::Immediate(data),
             accounts,
         }
     }
 
     pub fn program_id<'a>(&self, program_ids: &'a [Pubkey]) -> &'a Pubkey {
         &program_ids[self.program_ids_index as usize]
+    }
+
+    pub fn data(&self) -> &[u8] {
+        match &self.data {
+            CompiledInstructionData::Immediate(bytes) => bytes,
+            _ => panic!("Impossible lookup of account data"),
+        }
     }
 }

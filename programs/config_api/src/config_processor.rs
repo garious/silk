@@ -35,6 +35,7 @@ mod tests {
     use solana_runtime::bank_client::BankClient;
     use solana_sdk::client::SyncClient;
     use solana_sdk::genesis_block::create_genesis_block;
+    use solana_sdk::instruction::InstructionData;
     use solana_sdk::message::Message;
     use solana_sdk::signature::{Keypair, KeypairUtil};
     use solana_sdk::system_instruction;
@@ -134,7 +135,7 @@ mod tests {
         let my_config = MyConfig::new(42);
 
         let mut instruction = config_instruction::store(&config_pubkey, &my_config);
-        instruction.data = vec![0; 123]; // <-- Replace data with a vector that's too large
+        instruction.data = InstructionData::Immediate(vec![0; 123]); // <-- Replace data with a vector that's too large
         let message = Message::new(vec![instruction]);
         bank_client
             .send_message(&[&config_keypair], message)

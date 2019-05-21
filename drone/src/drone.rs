@@ -386,7 +386,7 @@ mod tests {
         assert_eq!(message.recent_blockhash, blockhash);
 
         assert_eq!(message.instructions.len(), 1);
-        let instruction: SystemInstruction = deserialize(&message.instructions[0].data).unwrap();
+        let instruction: SystemInstruction = deserialize(&message.instructions[0].data()).unwrap();
         assert_eq!(
             instruction,
             SystemInstruction::CreateAccount {

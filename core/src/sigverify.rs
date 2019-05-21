@@ -300,6 +300,7 @@ mod tests {
     use crate::sigverify;
     use crate::test_tx::{test_multisig_tx, test_tx};
     use bincode::{deserialize, serialize};
+    use solana_sdk::instruction::CompiledInstructionData;
     use solana_sdk::transaction::Transaction;
 
     const SIG_OFFSET: usize = 1;
@@ -357,7 +358,7 @@ mod tests {
     fn test_system_transaction_data_layout() {
         use crate::packet::PACKET_DATA_SIZE;
         let mut tx0 = test_tx();
-        tx0.message.instructions[0].data = vec![1, 2, 3];
+        tx0.message.instructions[0].data = CompiledInstructionData::Immediate(vec![1, 2, 3]);
         let message0a = tx0.message_data();
         let tx_bytes = serialize(&tx0).unwrap();
         assert!(tx_bytes.len() < PACKET_DATA_SIZE);
@@ -367,9 +368,9 @@ mod tests {
         );
         let tx1 = deserialize(&tx_bytes).unwrap();
         assert_eq!(tx0, tx1);
-        assert_eq!(tx1.message().instructions[0].data, vec![1, 2, 3]);
+        assert_eq!(tx1.message().instructions[0].data(), &[1, 2, 3]);
 
-        tx0.message.instructions[0].data = vec![1, 2, 4];
+        tx0.message.instructions[0].data = CompiledInstructionData::Immediate(vec![1, 2, 4]);
         let message0b = tx0.message_data();
         assert_ne!(message0a, message0b);
     }

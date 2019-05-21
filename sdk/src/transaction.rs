@@ -126,7 +126,7 @@ impl Transaction {
     }
 
     pub fn data(&self, instruction_index: usize) -> &[u8] {
-        &self.message.instructions[instruction_index].data
+        self.message.instructions[instruction_index].data()
     }
 
     fn key_index(&self, instruction_index: usize, accounts_index: usize) -> Option<usize> {
@@ -361,13 +361,13 @@ mod tests {
         let expected_data_size = size_of::<u32>() + size_of::<u64>();
         assert_eq!(expected_data_size, 12);
         assert_eq!(
-            ix.data.len(),
+            ix.data().len(),
             expected_data_size,
             "unexpected system instruction size"
         );
 
-        let expected_instruction_size = 1 + 1 + ix.accounts.len() + 1 + expected_data_size;
-        assert_eq!(expected_instruction_size, 17);
+        let expected_instruction_size = 1 + 1 + ix.accounts.len() + 1 + 4 + expected_data_size;
+        assert_eq!(expected_instruction_size, 21);
 
         let message = Message::new(vec![ix]);
         assert_eq!(
@@ -391,7 +391,7 @@ mod tests {
             + (tx.message.program_ids().len() * size_of::<Pubkey>())
             + len_size
             + expected_instruction_size;
-        assert_eq!(expected_transaction_size, 214);
+        assert_eq!(expected_transaction_size, 218);
 
         assert_eq!(
             serialized_size(&tx).unwrap() as usize,
@@ -407,16 +407,16 @@ mod tests {
         assert_eq!(
             serialize(&create_sample_transaction()).unwrap(),
             vec![
-                1, 134, 84, 186, 62, 126, 175, 48, 6, 80, 185, 139, 108, 109, 157, 213, 17, 249, 3,
-                79, 83, 21, 89, 242, 148, 51, 140, 115, 77, 161, 134, 116, 136, 206, 171, 239, 236,
-                240, 19, 73, 217, 152, 60, 159, 170, 41, 104, 29, 217, 93, 65, 139, 191, 202, 181,
-                77, 246, 26, 15, 156, 186, 66, 32, 139, 6, 1, 2, 156, 227, 116, 193, 215, 38, 142,
-                22, 8, 14, 229, 239, 119, 93, 5, 218, 161, 35, 3, 33, 0, 36, 100, 158, 252, 33,
-                161, 97, 185, 62, 89, 99, 1, 1, 1, 4, 5, 6, 7, 8, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
-                9, 9, 9, 9, 9, 8, 7, 6, 5, 4, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 4, 5, 6, 7, 8, 9, 1,
-                1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 9, 8, 7, 6, 5, 4, 2, 2, 2, 1, 0, 2, 0, 1, 3,
-                1, 2, 3
+                1, 240, 59, 72, 218, 25, 90, 9, 67, 52, 1, 238, 128, 58, 165, 131, 90, 28, 53, 178,
+                223, 62, 60, 171, 189, 192, 146, 233, 210, 197, 110, 212, 162, 125, 54, 107, 185,
+                190, 164, 17, 15, 13, 6, 103, 50, 43, 244, 8, 181, 30, 137, 112, 167, 187, 159, 9,
+                65, 219, 236, 18, 99, 174, 36, 248, 0, 1, 2, 156, 227, 116, 193, 215, 38, 142, 22,
+                8, 14, 229, 239, 119, 93, 5, 218, 161, 35, 3, 33, 0, 36, 100, 158, 252, 33, 161,
+                97, 185, 62, 89, 99, 1, 1, 1, 4, 5, 6, 7, 8, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+                9, 9, 9, 8, 7, 6, 5, 4, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 4, 5, 6, 7, 8, 9, 1, 1, 1,
+                1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 9, 8, 7, 6, 5, 4, 2, 2, 2, 1, 0, 2, 0, 1, 0, 0, 0,
+                0, 3, 1, 2, 3
             ]
         );
     }

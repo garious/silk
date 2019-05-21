@@ -984,7 +984,7 @@ mod tests {
     use crate::genesis_utils::{create_genesis_block_with_leader, BOOTSTRAP_LEADER_LAMPORTS};
     use solana_sdk::genesis_block::create_genesis_block;
     use solana_sdk::hash;
-    use solana_sdk::instruction::InstructionError;
+    use solana_sdk::instruction::{CompiledInstructionData, InstructionError};
     use solana_sdk::signature::{Keypair, KeypairUtil};
     use solana_sdk::system_instruction;
     use solana_sdk::system_transaction;
@@ -1241,7 +1241,10 @@ mod tests {
         let mut tx =
             system_transaction::transfer(&mint_keypair, &key2.pubkey(), 1, genesis_block.hash());
         // send a bogus instruction to system_program, cause an instruction error
-        tx.message.instructions[0].data[0] = 40;
+        match &mut tx.message.instructions[0].data {
+            CompiledInstructionData::Immediate(data) => data[0] = 40,
+            _ => unreachable!(),
+        }
 
         bank.process_transaction(&tx)
             .expect_err("instruction error"); // fails with an instruction error

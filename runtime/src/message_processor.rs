@@ -1,7 +1,7 @@
 use crate::native_loader;
 use crate::system_instruction_processor;
 use solana_sdk::account::{create_keyed_accounts, Account, KeyedAccount};
-use solana_sdk::instruction::{CompiledInstruction, InstructionError};
+use solana_sdk::instruction::{CompiledInstruction, CompiledInstructionData, InstructionError};
 use solana_sdk::instruction_processor_utils;
 use solana_sdk::message::Message;
 use solana_sdk::pubkey::Pubkey;
@@ -127,6 +127,14 @@ impl MessageProcessor {
     ) -> Result<(), InstructionError> {
         let program_id = instruction.program_id(message.program_ids());
 
+        // TODO: Remove clone() once there are read-only accounts.
+        let instruction_data = match &instruction.data {
+            CompiledInstructionData::Immediate(data) => data.clone(),
+            CompiledInstructionData::Indirect(index) => {
+                program_accounts[*index as usize].data.clone()
+            }
+        };
+
         let mut keyed_accounts = create_keyed_accounts(executable_accounts);
         let mut keyed_accounts2: Vec<_> = instruction
             .accounts
@@ -146,7 +154,7 @@ impl MessageProcessor {
                 return process_instruction(
                     &program_id,
                     &mut keyed_accounts[1..],
-                    &instruction.data,
+                    &instruction_data,
                     tick_height,
                 );
             }
@@ -155,7 +163,7 @@ impl MessageProcessor {
         native_loader::entrypoint(
             &program_id,
             &mut keyed_accounts,
-            &instruction.data,
+            &instruction_data,
             tick_height,
             &self.symbol_cache,
         )

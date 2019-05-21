@@ -1,13 +1,24 @@
 //! A library for generating a message from a sequence of instructions
 
 use crate::hash::Hash;
-use crate::instruction::{AccountMeta, CompiledInstruction, Instruction};
+use crate::instruction::{
+    AccountMeta, CompiledInstruction, CompiledInstructionData, Instruction, InstructionData,
+};
 use crate::pubkey::Pubkey;
 use crate::short_vec;
 use itertools::Itertools;
 
 fn position(keys: &[Pubkey], key: &Pubkey) -> u8 {
     keys.iter().position(|k| k == key).unwrap() as u8
+}
+
+fn compile_instruction_data(data: InstructionData, keys: &[Pubkey]) -> CompiledInstructionData {
+    match data {
+        InstructionData::Immediate(data) => CompiledInstructionData::Immediate(data),
+        InstructionData::Indirect(pubkey) => {
+            CompiledInstructionData::Indirect(position(keys, &pubkey))
+        }
+    }
 }
 
 fn compile_instruction(
@@ -23,7 +34,7 @@ fn compile_instruction(
 
     CompiledInstruction {
         program_ids_index: position(program_ids, &ix.program_ids_index),
-        data: ix.data.clone(),
+        data: compile_instruction_data(ix.data, keys),
         accounts,
     }
 }

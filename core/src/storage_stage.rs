@@ -416,7 +416,7 @@ impl StorageStage {
                             for (i, program_id) in tx.message.program_ids().iter().enumerate() {
                                 if solana_storage_api::check_id(&program_id) {
                                     Self::process_storage_transaction(
-                                        &tx.message().instructions[i].data,
+                                        &tx.message().instructions[i].data(),
                                         slot,
                                         storage_state,
                                         current_key_idx,
