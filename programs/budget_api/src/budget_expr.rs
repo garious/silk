@@ -31,6 +31,9 @@ pub struct Payment {
 /// A data type representing a `Witness` that the payment plan is waiting on.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum Condition {
+    /// True
+    True,
+
     /// Wait for a `Timestamp` `Witness` at or after the given `DateTime`.
     Timestamp(DateTime<Utc>, Pubkey),
 
@@ -40,14 +43,17 @@ pub enum Condition {
 
 impl Condition {
     /// Return true if the given Witness satisfies this Condition.
-    pub fn is_satisfied(&self, witness: &Witness, from: &Pubkey) -> bool {
-        match (self, witness) {
-            (Condition::Signature(pubkey), Witness::Signature) => pubkey == from,
-            (Condition::Timestamp(dt, pubkey), Witness::Timestamp(last_time)) => {
-                pubkey == from && dt <= last_time
-            }
-            _ => false,
-        }
+    pub fn is_satisfied(&mut self, witness: &Witness, from: &Pubkey) -> bool {
+        let new_cond = match (self, witness) {
+            (Condition::Signature(pubkey), Witness::Signature) if pubkey == from => Some(Condition::True),
+            (Condition::Timestamp(dt, pubkey), Witness::Timestamp(last_time)) if pubkey == from && *dt <= *last_time => Some(Condition::True),
+            _ => None,
+        };
+        if let Some(cond) = new_cond {
+            mem::replace(self, cond);
+            return true;
+        };
+        false
     }
 }
 
@@ -185,14 +191,26 @@ impl BudgetExpr {
     /// If so, modify the budget in-place.
     pub fn apply_witness(&mut self, witness: &Witness, from: &Pubkey) {
         let new_expr = match self {
-            BudgetExpr::After(cond, sub_expr) if cond.is_satisfied(witness, from) => {
-                Some(sub_expr.clone())
+            BudgetExpr::After(cond, sub_expr) => {
+                if cond.is_satisfied(witness, from) {
+                    Some(sub_expr.clone())
+                } else {
+                    None
+                }
+            },
+            BudgetExpr::Or((cond, sub_expr), _) => {
+                if cond.is_satisfied(witness, from) {
+                    Some(sub_expr.clone())
+                } else {
+                    None
+                }
             }
-            BudgetExpr::Or((cond, sub_expr), _) if cond.is_satisfied(witness, from) => {
-                Some(sub_expr.clone())
-            }
-            BudgetExpr::Or(_, (cond, sub_expr)) if cond.is_satisfied(witness, from) => {
-                Some(sub_expr.clone())
+            BudgetExpr::Or(_, (cond, sub_expr)) => {
+                if cond.is_satisfied(witness, from) {
+                    Some(sub_expr.clone())
+                } else {
+                    None
+                }
             }
             BudgetExpr::And(cond0, cond1, sub_expr) => {
                 if cond0.is_satisfied(witness, from) {
