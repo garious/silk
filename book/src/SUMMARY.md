@@ -57,6 +57,7 @@
   - [Credit-only Accounts](credit-only-credit-debit-accounts.md)
   - [Deterministic Transaction Fees](transaction-fees.md)
   - [Validator](validator-proposal.md)
+  - [Composable Tokens](composable-tokens.md)
 
 - [Implemented Design Proposals](implemented-proposals.md)
   - [Fork Selection](fork-selection.md)
